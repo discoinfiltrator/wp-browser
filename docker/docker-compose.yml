@@ -9,7 +9,7 @@ services:
         volumes:
           - /var/run/docker.sock:/tmp/docker.sock:ro
     mysql:
-        image: mariadb
+        image: mysql
         environment:
             - VIRTUAL_HOST=mysql.wp.localhost
             - MYSQL_ROOT_PASSWORD=root
@@ -20,6 +20,7 @@ services:
             - ./database:/var/lib/mysql
         ports:
             - "3306:3306"
+        user: "1000"
     php:
         build: ./build/php
         links:
