@@ -5,54 +5,44 @@ namespace Codeception\Template;
 
 use Prophecy\Argument;
 use Symfony\Component\Console\Helper\QuestionHelper;
-use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\BufferedOutput;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Question\Question;
 
 class LocalServerTest extends \Codeception\Test\Unit {
 
-    /**
-     * @var \UnitTester
-     */
-    protected $tester;
+	/**
+	 * @var \UnitTester
+	 */
+	protected $tester;
 
-    /**
-     * @param $answers
-     *
-     * @return \Codeception\Template\LocalServer
-     */
-    protected function makeInstance($answers): \Codeception\Template\LocalServer {
-        $input  = new StringInput('');
-        $output = new BufferedOutput();
-        /** @var QuestionHelper $questionHelper */
-        $questionHelper = $this->prophesize(QuestionHelper::class);
-        $questionHelper->ask(Argument::any(), Argument::any(), Argument::any())
-                       ->will(function () use ($answers) {
-                           static $count;
+	public function test_input() {
+		$answers = ['foo'];
+		$sut = $this->makeInstance($answers);
 
-                           return $answers[(int) $count++];
-                       });
+		$sut->setup();
 
-        $instance = new LocalServer($input, $output, $questionHelper->reveal());
+		$this->assertStringEqualsFile($sut->getOutputFilePath(), 'foo');
+	}
 
-        return $instance;
-    }
+	/**
+	 * @param $answers
+	 *
+	 * @return \Codeception\Template\LocalServer
+	 */
+	protected function makeInstance($answers) {
+		$input = new StringInput('');
+		$output = new BufferedOutput();
+		/** @var QuestionHelper $questionHelper */
+		$questionHelper = $this->prophesize(QuestionHelper::class);
+		$questionHelper->ask(Argument::any(), Argument::any(), Argument::any())
+			->will(function () use ($answers) {
+				static $count;
 
-    protected function _before() {
-    }
+				return $answers[(int) $count++];
+			});
 
-    protected function _after() {
-    }
+		$instance = new LocalServer($input, $output, $questionHelper->reveal());
 
-    public function test_input() {
-        $answers = ['foo'];
-        $sut     = $this->makeInstance($answers);
-
-        $sut->setup();
-
-        $this->assertStringEqualsFile($sut->getOutputFilePath(), 'foo');
-    }
+		return $instance;
+	}
 }
