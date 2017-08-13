@@ -39,7 +39,8 @@
     "ofbeaton/console-tester": "^1.1",
     "site5/phantoman": "^1.1",
     "vlucas/phpdotenv": "^2.4",
-    "eventviva/php-image-resize": "^1.6"
+    "eventviva/php-image-resize": "^1.6",
+    "ad7six/dsn": "^0.4.0"
   },
   "bin": [
     "wpcept"

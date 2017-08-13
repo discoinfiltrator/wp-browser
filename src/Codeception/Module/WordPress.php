@@ -2,10 +2,12 @@
 
 namespace Codeception\Module;
 
+use AD7six\Dsn\Dsn;
 use Codeception\Exception\ModuleConfigException;
 use Codeception\Lib\Framework;
 use Codeception\Lib\Interfaces\DependsOnModule;
 use Codeception\Lib\ModuleContainer;
+use Codeception\TestCase\WPTestCase;
 use Codeception\TestInterface;
 use tad\WPBrowser\Connector\WordPress as WordPressConnector;
 
@@ -26,7 +28,7 @@ class WordPress extends Framework implements DependsOnModule {
 	/**
 	 * @var array
 	 */
-	protected $config = ['adminPath' => '/wp-admin'];
+	protected $config = ['adminPath' => '/wp-admin', 'insulated' => true];
 
 	/**
 	 * @var string
@@ -95,6 +97,9 @@ EOF;
 	 * @param ModuleContainer $moduleContainer
 	 * @param array           $config
 	 * @param                 $client WordPressConnector
+	 *
+	 * @throws \RuntimeException If the `Symfony\Component\Process\Process` class is not defined and the
+	 *                           `insulated` configuration parameter is set to `true`.
 	 */
 	public function __construct(ModuleContainer $moduleContainer, $config = [], WordPressConnector $client = NULL) {
 		parent::__construct($moduleContainer, $config);
@@ -127,8 +132,13 @@ EOF;
 		$this->client->setUrl($this->siteUrl);
 		$this->client->setDomain($siteDomain);
 		$this->client->setRootFolder($this->config['wpRootFolder']);
-		$this->client->followRedirects(TRUE);
+		$this->client->followRedirects(true);
 		$this->client->resetCookies();
+		$insulated = (bool) $this->config['insulated'];
+		$this->client->insulate($insulated);
+		if (!$insulated) {
+			$this->setupWpLoaderForClient();
+		}
 		$this->setCookiesFromOptions();
 	}
 
@@ -313,5 +323,21 @@ EOF;
       'testcookie' => '1',
       'redirect_to' => ''
     ], '#wp-submit');
+	}
+
+	protected function setupWpLoaderForClient() {
+		$wpdbConfig     = $this->wpdbModule->_getConfig();
+		$dsn            = Dsn::parse($wpdbConfig['dsn'])->toArray();
+		$wpLoaderConfig = [
+			'loadOnly'     => true,
+			'wpRootFolder' => $this->config['wpRootFolder'],
+			'dbName'       => $dsn['name'],
+			'dbHost'       => $dsn['host'],
+			'dbUser'       => $wpdbConfig['dbUser'],
+			'dbPassword'   => $wpdbConfig['dbPassword'],
+		];
+		$wpLoader       = new WPLoader($this->moduleContainer, $wpLoaderConfig);
+		$wpLoader->_initialize();
+		$this->client->setWpLoader($wpLoader);
 	}
 }

@@ -4,8 +4,10 @@ namespace Codeception\Module;
 
 use Codeception\Exception\ModuleConfigException;
 use Codeception\Exception\ModuleConflictException;
+use Codeception\Exception\ModuleException;
 use Codeception\Lib\ModuleContainer;
 use Codeception\Module;
+use Codeception\TestCase\WPTestCase;
 use tad\WPBrowser\Adapters\WP;
 use tad\WPBrowser\Filesystem\Utils;
 use tad\WPBrowser\Module\WPLoader\FactoryStore;
@@ -142,17 +144,19 @@ class WPLoader extends Module {
 	protected $factoryStore;
 
 	/**
+	 * @var WPTestCase
+	 */
+	protected $wpTestCase;
+
+	/**
 	 * @var WP
 	 */
 	private $wp;
 
-	public function __construct(
-		ModuleContainer $moduleContainer,
-		$config,
-		WP $wp = null
-	) {
+	public function __construct(ModuleContainer $moduleContainer, $config, WP $wp = null, WPTestCase $testCase = null) {
 		parent::__construct($moduleContainer, $config);
-		$this->wp = $wp ? $wp : new WP();
+		$this->wp         = $wp ? $wp : new WP();
+		$this->wpTestCase = $testCase ? $testCase : new WPTestCase();
 	}
 
 	/**
@@ -335,7 +339,8 @@ class WPLoader extends Module {
 
 	/**
 	 * @return string
-	 * @throws ModuleConfigException
+	 *
+	 * @throws \Codeception\Exception\ModuleConfigException If the pluginsFolder specified in the configuration does not exist.
 	 */
 	protected function getPluginsFolder() {
 		if (empty($this->pluginsFolder)) {
@@ -343,8 +348,7 @@ class WPLoader extends Module {
 				: realpath($this->getWpRootFolder() . Utils::unleadslashit($this->config['pluginsFolder']));
 
 			if (!file_exists($path)) {
-				throw new ModuleConfigException(__CLASS__,
-					"The path to the plugins folder ('{$path}') doesn't exist.");
+				throw new ModuleConfigException(__CLASS__, "The path to the plugins folder ('{$path}') doesn't exist.");
 			}
 
 			$this->pluginsFolder = Utils::untrailslashit($path);
@@ -357,6 +361,7 @@ class WPLoader extends Module {
 		$this->ensureServerVars();
 
 		include_once $this->wpRootFolder . '/wp-load.php';
+		include_once __DIR__ . '/../../includes/utils.php';
 
 		$this->setupCurrentSite();
 		$this->factoryStore = new FactoryStore();
@@ -546,5 +551,24 @@ class WPLoader extends Module {
 				$_SERVER[$key] = $value;
 			}
 		}
+	}
+
+	/**
+	 * Goes to the specified URL including the destination file directly in the same scope of the tests.
+	 *
+	 * Proxy for `Codeception\TestCase\WPTestCase::go_to` method; modifies WordPress's query internals as if a given URL has been requested.
+	 *
+	 * @param string $url The URL for the request.
+	 *
+	 * @see WPTestCase::go_to()
+	 *
+	 * @throws \Codeception\Exception\ModuleException If trying to use the method when `loadOnly` is not set to `true`
+	 */
+	public function go_to($url) {
+		if (null === $this->wpTestCase) {
+			$message = "the 'go_to' method is only available when configuring the module to `loadOnly`\nUse the 'go_to' method defined on the 'Codeception\TestCase\WPTestCase' instead.";
+			throw new ModuleException(__CLASS__, $message);
+		}
+		return $this->wpTestCase->go_to($url);
 	}
 }

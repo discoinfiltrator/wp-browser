@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "4b6bf1f436112bb7bb336d39a653d77f",
+    "content-hash": "9da90a3b08b7971c0196147a1ddc3dd3",
     "packages": [
         {
             "name": "antecedent/patchwork",
@@ -5549,6 +5549,48 @@
         }
     ],
     "packages-dev": [
+        {
+            "name": "ad7six/dsn",
+            "version": "0.4.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/AD7six/php-dsn.git",
+                "reference": "cb75d8d6660a5110876574815fbb4ad65d576d71"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/AD7six/php-dsn/zipball/cb75d8d6660a5110876574815fbb4ad65d576d71",
+                "reference": "cb75d8d6660a5110876574815fbb4ad65d576d71",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.4.0"
+            },
+            "suggest": {
+                "josegonzalez/dotenv": "0.1.*"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "AD7six\\Dsn\\": "src",
+                    "AD7six\\Dsn\\Test\\": "tests"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andy Dawson",
+                    "email": "andydawson76@gmail.com",
+                    "homepage": "http://ad7six.com",
+                    "role": "Maintainer"
+                }
+            ],
+            "description": "A utility for parsing and generating service DSNs",
+            "time": "2015-03-28T07:40:11+00:00"
+        },
         {
             "name": "eventviva/php-image-resize",
             "version": "1.6.6",

@@ -4,6 +4,8 @@ namespace tad\WPBrowser\Connector;
 
 use Codeception\Exception\ModuleException;
 use Codeception\Lib\Connector\Universal;
+use Codeception\Module\WPLoader;
+use Codeception\TestCase\WPTestCase;
 use Symfony\Component\BrowserKit\CookieJar;
 use Symfony\Component\BrowserKit\History;
 use Symfony\Component\BrowserKit\Request;
@@ -40,6 +42,11 @@ class WordPress extends Universal {
 	 * @var UriToIndexMapper
 	 */
 	protected $uriToIndexMapper;
+
+	/**
+	 * @var WPLoader
+	 */
+	protected $wpLoader;
 
 	public function __construct(
 		array $server = array(),
@@ -133,6 +140,55 @@ class WordPress extends Universal {
 		return $response;
 	}
 
+	public function doRequest($request) {
+		if ($this->mockedResponse) {
+			$response = $this->mockedResponse;
+			$this->mockedResponse = null;
+			return $response;
+		}
+
+		$_COOKIE = $request->getCookies();
+		$_SERVER = $request->getServer();
+		$_FILES = $this->remapFiles($request->getFiles());
+
+		$uri = str_replace('http://localhost', '', $request->getUri());
+
+		$_REQUEST = $this->remapRequestParameters($request->getParameters());
+		if (strtoupper($request->getMethod()) == 'GET') {
+			$_GET = $_REQUEST;
+		} else {
+			$_POST = $_REQUEST;
+		}
+
+		$_SERVER['REQUEST_METHOD'] = strtoupper($request->getMethod());
+		$_SERVER['REQUEST_URI'] = $uri;
+
+		ob_start();
+
+		$this->wpLoader->go_to($uri);
+
+		$content = ob_get_contents();
+		ob_end_clean();
+
+		$headers = [];
+		$php_headers = headers_list();
+		foreach ($php_headers as $value) {
+			// Get the header name
+			$parts = explode(':', $value);
+			if (count($parts) > 1) {
+				$name = trim(array_shift($parts));
+				// Build the header hash map
+				$headers[$name] = trim(implode(':', $parts));
+			}
+		}
+		$headers['Content-type'] = isset($headers['Content-type'])
+			? $headers['Content-type']
+			: "text/html; charset=UTF-8";
+
+		$response = new Response($content, 200, $headers);
+		return $response;
+	}
+
 	private function replaceSiteUrlDeep($array, $url) {
 		if (empty($array)) {
 			return [];
@@ -194,5 +250,9 @@ class WordPress extends Universal {
 
 	public function resetCookies() {
 		$this->cookieJar = new CookieJar();
+	}
+
+	public function setWpLoader(WPLoader $wpLoader) {
+		$this->wpLoader = $wpLoader;
 	}
 }
