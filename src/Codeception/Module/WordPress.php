@@ -9,6 +9,7 @@ use Codeception\Lib\Interfaces\DependsOnModule;
 use Codeception\Lib\ModuleContainer;
 use Codeception\TestCase\WPTestCase;
 use Codeception\TestInterface;
+use function GuzzleHttp\Psr7\parse_query;
 use tad\WPBrowser\Connector\WordPress as WordPressConnector;
 
 class WordPress extends Framework implements DependsOnModule {
@@ -326,15 +327,16 @@ EOF;
 	}
 
 	protected function setupWpLoaderForClient() {
-		$wpdbConfig     = $this->wpdbModule->_getConfig();
-		$dsn            = Dsn::parse($wpdbConfig['dsn'])->toArray();
+		$wpdbConfig = $this->wpdbModule->_getConfig();
+		$dsn        = Dsn::parse($wpdbConfig['dsn'])->toArray();
+		parse_str(str_replace(';', '&', $dsn['database']), $dsnDetails);
 		$wpLoaderConfig = [
 			'loadOnly'     => true,
 			'wpRootFolder' => $this->config['wpRootFolder'],
-			'dbName'       => $dsn['name'],
-			'dbHost'       => $dsn['host'],
-			'dbUser'       => $wpdbConfig['dbUser'],
-			'dbPassword'   => $wpdbConfig['dbPassword'],
+			'dbName'       => $dsnDetails['dbname'],
+			'dbHost'       => $dsnDetails['host'],
+			'dbUser'       => $wpdbConfig['user'],
+			'dbPassword'   => $wpdbConfig['password'],
 		];
 		$wpLoader       = new WPLoader($this->moduleContainer, $wpLoaderConfig);
 		$wpLoader->_initialize();
