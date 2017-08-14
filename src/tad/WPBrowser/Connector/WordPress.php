@@ -164,6 +164,7 @@ class WordPress extends Universal {
 		$_SERVER['REQUEST_URI']     = $uri;
 		$_SERVER['PHP_SELF']        = str_replace($this->rootFolder, '', $this->uriToIndexMapper->getIndexForUri($uri));
 		$_SERVER['SERVER_PROTOCOL'] = !empty($_SERVER['SERVER_PROTOCOL']) ?: 'HTTP/1.0';
+		$_SERVER['SERVER_NAME'] = !empty($_SERVER['SERVER_NAME']) ?: $this->domain;
 
 		ob_start();
 
