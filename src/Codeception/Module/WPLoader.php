@@ -364,6 +364,8 @@ class WPLoader extends Module {
 			define('DISABLE_WP_CRON', true);
 		}
 
+		wpbrowser_include_patchwork();
+
 		include_once $this->wpRootFolder . '/wp-load.php';
 		include_once __DIR__ . '/../../includes/utils.php';
 

@@ -11,6 +11,8 @@ use Symfony\Component\BrowserKit\Request;
 use Symfony\Component\BrowserKit\Response;
 use Symfony\Component\Process\Process;
 use tad\WPBrowser\Module\Support\UriToIndexMapper;
+use function Patchwork\redefine;
+use function Patchwork\relay;
 
 class WordPress extends Universal {
 	/**
@@ -51,6 +53,8 @@ class WordPress extends Universal {
 	 * @var bool
 	 */
 	protected $echoOutput = true;
+
+	protected $loadTemplateHandle;
 
 	public function __construct(
 		array $server = array(),
@@ -274,11 +278,15 @@ class WordPress extends Universal {
 	protected function addPrintOutputAction() {
 		add_action('wp', [$this, 'includeTemplateLoader'], 99);
 		add_filter('redirect_canonical', '__return_false');
+		$this->loadTemplateHandle = redefine('load_template', function($_template_file){
+			relay([$_template_file, false]);
+		});
 	}
 
 	protected function removePrintOutputAction() {
 		remove_filter('redirect_canonical', '__return_false');
 		remove_action('wp', [$this, 'includeTemplateLoader'], 99);
+		restore($this->loadTemplateHandle);
 	}
 
 	public function includeTemplateLoader() {
