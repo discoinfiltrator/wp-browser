@@ -360,6 +360,10 @@ class WPLoader extends Module {
 	protected function bootstrapWP() {
 		$this->ensureServerVars();
 
+		if (!defined('DISABLE_WP_CRON')) {
+			define('DISABLE_WP_CRON', true);
+		}
+
 		include_once $this->wpRootFolder . '/wp-load.php';
 		include_once __DIR__ . '/../../includes/utils.php';
 
