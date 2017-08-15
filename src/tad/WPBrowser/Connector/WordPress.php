@@ -5,7 +5,6 @@ namespace tad\WPBrowser\Connector;
 use Codeception\Exception\ModuleException;
 use Codeception\Lib\Connector\Universal;
 use Codeception\Module\WPLoader;
-use Codeception\TestCase\WPTestCase;
 use Symfony\Component\BrowserKit\CookieJar;
 use Symfony\Component\BrowserKit\History;
 use Symfony\Component\BrowserKit\Request;
@@ -47,6 +46,11 @@ class WordPress extends Universal {
 	 * @var WPLoader
 	 */
 	protected $wpLoader;
+
+	/**
+	 * @var bool
+	 */
+	protected $echoOutput = true;
 
 	public function __construct(
 		array $server = array(),
@@ -166,10 +170,14 @@ class WordPress extends Universal {
 		$_SERVER['SERVER_PROTOCOL'] = !empty($_SERVER['SERVER_PROTOCOL']) ?: 'HTTP/1.0';
 		$_SERVER['SERVER_NAME'] = !empty($_SERVER['SERVER_NAME']) ?: $this->domain;
 
+		if ($this->echoOutput) {
+			$this->addPrintOutputAction();
+		} else {
+			$this->removePrintOutputAction();
+		}
+
 		ob_start();
-
 		$this->wpLoader->go_to($uri);
-
 		$content = ob_get_contents();
 		ob_end_clean();
 
@@ -257,5 +265,30 @@ class WordPress extends Universal {
 
 	public function setWpLoader(WPLoader $wpLoader) {
 		$this->wpLoader = $wpLoader;
+	}
+
+	public function echoOutput($echoOutput) {
+		$this->echoOutput = $echoOutput;
+	}
+
+	protected function addPrintOutputAction() {
+		add_action('wp', [$this, 'includeTemplateLoader'], 99);
+		add_filter('redirect_canonical', '__return_false');
+	}
+
+	protected function removePrintOutputAction() {
+		remove_filter('redirect_canonical', '__return_false');
+		remove_action('wp', [$this, 'includeTemplateLoader'], 99);
+	}
+
+	public function includeTemplateLoader() {
+		remove_action('wp', [$this, 'includeTemplateLoader'], 99);
+
+		$templateLoaderPath = $this->wpLoader->_getConfig('wpRootFolder') . '/wp-includes/template-loader.php';
+		if (!defined('WP_USE_THEMES')) {
+			define('WP_USE_THEMES', true);
+		}
+
+		include $templateLoaderPath;
 	}
 }

@@ -228,7 +228,7 @@ EOF;
 	 *
 	 * @return null|string
 	 */
-	public function amOnPage($page) {
+	public function amOnPage($page, $echo  = true) {
 		$this->setRequestType($page);
 
 		$parts      = parse_url($page);
@@ -244,6 +244,7 @@ EOF;
 		}
 
 		$this->setCookie('wordpress_test_cookie', 'WP Cookie check');
+		$this->client->echoOutput((bool)$echo);
 		$this->_loadPage('GET', $page, $parameters);
 
 		return NULL;
