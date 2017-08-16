@@ -9,6 +9,8 @@ interface PatchworkUser {
 	/**
 	 * Writes the Patchwork configuration and checksum files if needed.
 	 *
+	 * @return bool Whether a new configuration file was written or not.
+	 *
 	 * @throws \Codeception\Exception\ModuleException If the Patchwork configuration or the checksum files could not be written.
 	 */
 	public function _writePatchworkConfig();

@@ -577,6 +577,8 @@ class WPLoader extends Module implements PatchworkUser {
 	/**
 	 * Writes the Patchwork configuration and checksum files if needed.
 	 *
+	 * @return bool Whether a new configuration file was written or not.
+	 *
 	 * @throws \Codeception\Exception\ModuleException If the Patchwork configuration or the checksum files could not be written.
 	 */
 	public function _writePatchworkConfig() {
@@ -585,11 +587,16 @@ class WPLoader extends Module implements PatchworkUser {
 		$checksum                    = md5($toWrite);
 		$patchworkConfigChecksumFile = $this->_getPatchworkConfigChecksumFile($checksum);
 		if (file_exists($patchworkConfigFile) && file_exists($patchworkConfigChecksumFile)) {
-			return;
+			return false;
 		}
 		if (false === file_put_contents($patchworkConfigFile, $toWrite)) {
 			throw new ModuleException(__CLASS__, "Could not write Patchwork configuration file to {$patchworkConfigFile}");
 		}
+
+		foreach (glob(dirname($patchworkConfigChecksumFile) . '/pw-cs-*.yml') as $file) {
+			unlink($file);
+		}
+
 		$date                                = date('Y-m-d H:i:s');
 		$patchworkConfigChecksumFileContents = <<< YAML
 generator: WPLoader module
@@ -600,6 +607,8 @@ YAML;
 		if (false === file_put_contents($patchworkConfigChecksumFile, $patchworkConfigChecksumFileContents)) {
 			throw new ModuleException(__CLASS__, "Could not write Patchwork configuration checksum file to {$patchworkConfigChecksumFile}");
 		}
+
+		return true;
 	}
 
 	/**
@@ -609,7 +618,7 @@ YAML;
 	 */
 	public function _getPatchworkConfigChecksumFile() {
 		$checksum = md5($this->_getPatchworkConfigurationContents());
-		return "{$this->_getPatchworkCachePath()}/{$checksum}.yml";
+		return "{$this->_getPatchworkCachePath()}/pw-cs-{$checksum}.yml";
 
 	}
 
