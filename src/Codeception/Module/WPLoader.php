@@ -10,6 +10,7 @@ use Codeception\Module;
 use Codeception\TestCase\WPTestCase;
 use tad\WPBrowser\Adapters\WP;
 use tad\WPBrowser\Filesystem\Utils;
+use tad\WPBrowser\Interfaces\PatchworkUser;
 use tad\WPBrowser\Module\WPLoader\FactoryStore;
 
 /**
@@ -25,7 +26,7 @@ use tad\WPBrowser\Module\WPLoader\FactoryStore;
  *
  * @package Codeception\Module
  */
-class WPLoader extends Module {
+class WPLoader extends Module implements PatchworkUser {
 
 	public static $includeInheritedActions = true;
 
@@ -247,8 +248,7 @@ class WPLoader extends Module {
 
 		if ($this->config['multisite']) {
 			$this->debug('Running as multisite');
-		}
-		else {
+		} else {
 			$this->debug('Running as single site');
 		}
 
@@ -256,8 +256,7 @@ class WPLoader extends Module {
 
 		if (!empty($this->config['loadOnly'])) {
 			$this->bootstrapWP();
-		}
-		else {
+		} else {
 			$this->installAndBootstrapInstallation();
 		}
 	}
@@ -366,6 +365,8 @@ class WPLoader extends Module {
 
 		wpbrowser_include_patchwork();
 
+		$this->_writePatchworkConfig();
+
 		include_once $this->wpRootFolder . '/wp-load.php';
 		include_once __DIR__ . '/../../includes/utils.php';
 
@@ -389,16 +390,14 @@ class WPLoader extends Module {
 			$current_site->domain    = $data->domain;
 			$current_site->path      = $data->path;
 			$current_site->site_name = ucfirst($data->domain);
-		}
-		else {
+		} else {
 			$site_url = $wpdb->get_var("SELECT option_value FROM {$wpdb->options} WHERE option_name = 'siteurl'");
 			if (!empty($site_url)) {
 				$current_site->domain = parse_url($site_url, PHP_URL_HOST);
 				if ($port = parse_url($site_url, PHP_URL_PORT)) {
 					$current_site->domain .= ":{$port}";
 				}
-			}
-			else {
+			} else {
 				$current_site->domain = $this->config['domain'];
 			}
 			$current_site->path = '/';
@@ -435,8 +434,7 @@ class WPLoader extends Module {
 		if (!empty($GLOBALS['wp_tests_options']['active_plugins'])) {
 			$GLOBALS['wp_tests_options']['active_plugins'] = array_merge($GLOBALS['wp_tests_options']['active_plugins'],
 				$this->config['plugins']);
-		}
-		else {
+		} else {
 			$GLOBALS['wp_tests_options']['active_plugins'] = $this->config['plugins'];
 		}
 	}
@@ -453,8 +451,7 @@ class WPLoader extends Module {
 		if (!is_array($this->config['theme'])) {
 			$template   = $this->config['theme'];
 			$stylesheet = $this->config['theme'];
-		}
-		else {
+		} else {
 			$template   = reset($this->config['theme']);
 			$stylesheet = end($this->config['theme']);
 		}
@@ -476,8 +473,7 @@ class WPLoader extends Module {
 		foreach ($this->config['bootstrapActions'] as $action) {
 			if (!is_callable($action)) {
 				do_action($action);
-			}
-			else {
+			} else {
 				call_user_func($action);
 			}
 		}
@@ -576,5 +572,71 @@ class WPLoader extends Module {
 			throw new ModuleException(__CLASS__, $message);
 		}
 		return $this->wpTestCase->go_to($url);
+	}
+
+	/**
+	 * Writes the Patchwork configuration and checksum files if needed.
+	 *
+	 * @throws \Codeception\Exception\ModuleException If the Patchwork configuration or the checksum files could not be written.
+	 */
+	public function _writePatchworkConfig() {
+		$toWrite                     = $this->_getPatchworkConfigurationContents($this->wpRootFolder);
+		$patchworkConfigFile         = $this->_getPatchworkConfigFile();
+		$checksum                    = md5($toWrite);
+		$patchworkConfigChecksumFile = $this->_getPatchworkConfigChecksumFile($checksum);
+		if (file_exists($patchworkConfigFile) && file_exists($patchworkConfigChecksumFile)) {
+			return;
+		}
+		if (false === file_put_contents($patchworkConfigFile, $toWrite)) {
+			throw new ModuleException(__CLASS__, "Could not write Patchwork configuration file to {$patchworkConfigFile}");
+		}
+		$date                                = date('Y-m-d H:i:s');
+		$patchworkConfigChecksumFileContents = <<< YAML
+generator: WPLoader module
+date: $date
+checksum for: $patchworkConfigFile
+checksum: $checksum
+YAML;
+		if (false === file_put_contents($patchworkConfigChecksumFile, $patchworkConfigChecksumFileContents)) {
+			throw new ModuleException(__CLASS__, "Could not write Patchwork configuration checksum file to {$patchworkConfigChecksumFile}");
+		}
+	}
+
+	/**
+	 * Returns the absolute path to the Patchwork configuration file checksum file.
+	 *
+	 * @return string
+	 */
+	public function _getPatchworkConfigChecksumFile() {
+		$checksum = md5($this->_getPatchworkConfigurationContents());
+		return "{$this->_getPatchworkCachePath()}/{$checksum}.yml";
+
+	}
+
+	/**
+	 * Returns the absolute path to the Patchwork configuration file used by the module.
+	 *
+	 * @return string
+	 */
+	public function _getPatchworkConfigFile() {
+		return __DIR__ . '/patchwork.json';
+	}
+
+	/**
+	 * Returns the absolute path to the cache folder used by the Patchwork library.
+	 *
+	 * @return string
+	 */
+	public function _getPatchworkCachePath() {
+		return dirname(dirname(dirname(__DIR__))) . '/cache';
+	}
+
+	/**
+	 * Returns the contents of the Patchwork configuration file created by the class
+	 *
+	 * @return string
+	 */
+	public function _getPatchworkConfigurationContents() {
+		return json_encode(['whitelist' => $this->wpRootFolder, 'cache-path' => $this->_getPatchworkCachePath()]);
 	}
 }
