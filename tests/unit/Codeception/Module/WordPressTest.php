@@ -242,7 +242,12 @@ class WordPressTest extends \Codeception\Test\Unit
 		$this->client = $this->prophesize(Connector::class);
 	}
 
-	protected function _after()
-	{
+	/**
+	 * It should do request in same process when non insulated
+	 *
+	 * @test
+	 */
+	public function should_do_request_in_same_process_when_non_insulated() {
+
 	}
 }

@@ -17,3 +17,6 @@ tests/_output
 tests/*.suite.yml
 codeception.yml
 .env.local
+
+# Patchwork configuration created by the modules
+src/Codeception/Module/patchwork.json

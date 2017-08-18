@@ -13,8 +13,10 @@ use Symfony\Component\Process\Process;
 use tad\WPBrowser\Module\Support\UriToIndexMapper;
 use function Patchwork\redefine;
 use function Patchwork\relay;
+use function Patchwork\restore;
 
 class WordPress extends Universal {
+
 	/**
 	 * @var bool
 	 */
@@ -39,6 +41,7 @@ class WordPress extends Universal {
 	 * @var string
 	 */
 	protected $rootFolder;
+
 	/**
 	 * @var UriToIndexMapper
 	 */
@@ -54,7 +57,24 @@ class WordPress extends Universal {
 	 */
 	protected $echoOutput = true;
 
+	/**
+	 * @var \Patchwork\CallRerouting\Handle
+	 */
 	protected $loadTemplateHandle;
+
+	/**
+	 * @var array A list of file paths that have been included by the module so
+	 *      far. All file paths are relative to the current WordPress root
+	 *      folder.
+	 */
+	protected $includedFiles = [];
+
+	/**
+	 * @var array A list of file paths to real PHP files that it's safe to
+	 *      include more than once. All file paths are relative to the current
+	 *      WordPress root folder.
+	 */
+	protected $safeFiles = [];
 
 	public function __construct(
 		array $server = array(),
@@ -69,59 +89,63 @@ class WordPress extends Universal {
 	/**
 	 * @param Request $request
 	 *
-	 * @return Response
+	 * @return \Symfony\Component\BrowserKit\Response
+	 *
+	 * @throws \Codeception\Exception\ModuleException If the process response is malformed and cannot be unserialized.
 	 */
 	public function doRequestInProcess($request) {
 		if ($this->mockedResponse) {
-			$response = $this->mockedResponse;
+			$response             = $this->mockedResponse;
 			$this->mockedResponse = null;
 			return $response;
 		}
 
 		$requestCookie = $request->getCookies();
 		$requestServer = $request->getServer();
-		$requestFiles = $this->remapFiles($request->getFiles());
+		$requestFiles  = $this->remapFiles($request->getFiles());
 
 		$parseResult = parse_url($request->getUri());
-		$uri = $parseResult["path"];
+		$uri         = $parseResult["path"];
 		if (array_key_exists("query", $parseResult)) {
 			$uri .= "?" . $parseResult["query"];
 		}
 
 		$requestRequestArray = $this->remapRequestParameters($request->getParameters());
 
-		$requestServer['REQUEST_METHOD'] = strtoupper( $request->getMethod() );
-		$requestServer['REQUEST_URI'] = $uri;
-		$requestServer['HTTP_HOST'] = $this->domain;
+		$requestServer['REQUEST_METHOD']  = strtoupper($request->getMethod());
+		$requestServer['REQUEST_URI']     = $uri;
+		$requestServer['HTTP_HOST']       = $this->domain;
 		$requestServer['SERVER_PROTOCOL'] = 'HTTP/1.1';
-		$requestServer['SERVER_NAME'] = $this->domain;
-		$requestServer['HTTP_CLIENT_IP'] = '127.0.0.1';
+		$requestServer['SERVER_NAME']     = $this->domain;
+		$requestServer['HTTP_CLIENT_IP']  = '127.0.0.1';
 
 		$this->index = $this->uriToIndexMapper->getIndexForUri($uri);
 
-		$phpSelf = str_replace($this->rootFolder, '', $this->index);
+		$phpSelf                   = str_replace($this->rootFolder, '',
+			$this->index);
 		$requestServer['PHP_SELF'] = $phpSelf;
 
 		$env = [
 			'headers' => $this->headers,
-			'cookie' => $requestCookie,
-			'server' => $requestServer,
-			'files' => $requestFiles,
+			'cookie'  => $requestCookie,
+			'server'  => $requestServer,
+			'files'   => $requestFiles,
 			'request' => $requestRequestArray,
 		];
 
-		if (strtoupper($request->getMethod()) == 'GET') {
+		if (strtoupper($request->getMethod()) === 'GET') {
 			$env['get'] = $env['request'];
-		} else {
+		}
+		else {
 			$env['post'] = $env['request'];
 		}
 
 		$requestScript = dirname(dirname(__DIR__)) . '/scripts/request.php';
 
 		$command = PHP_BINARY .
-			' ' . escapeshellarg($requestScript) .
-			' ' . escapeshellarg($this->index) .
-			' ' . escapeshellarg(base64_encode(serialize($env)));
+				   ' ' . escapeshellarg($requestScript) .
+				   ' ' . escapeshellarg($this->index) .
+				   ' ' . escapeshellarg(base64_encode(serialize($env)));
 
 		$process = new Process($command);
 		$process->run();
@@ -134,11 +158,11 @@ class WordPress extends Universal {
 			throw new ModuleException(\Codeception\Module\WordPress::class, $message);
 		}
 
-		$_SERVER = empty($unserializedResponse['server']) ? [] : $unserializedResponse['server'];
-		$_FILES = empty($unserializedResponse['files']) ? [] : $unserializedResponse['files'];
+		$_SERVER  = empty($unserializedResponse['server']) ? [] : $unserializedResponse['server'];
+		$_FILES   = empty($unserializedResponse['files']) ? [] : $unserializedResponse['files'];
 		$_REQUEST = empty($unserializedResponse['request']) ? [] : $unserializedResponse['request'];
-		$_GET = empty($unserializedResponse['get']) ? [] : $unserializedResponse['get'];
-		$_POST = empty($unserializedResponse['post']) ? [] : $unserializedResponse['post'];
+		$_GET     = empty($unserializedResponse['get']) ? [] : $unserializedResponse['get'];
+		$_POST    = empty($unserializedResponse['post']) ? [] : $unserializedResponse['post'];
 
 		$content = $unserializedResponse['content'];
 		$headers = $this->replaceSiteUrlDeep($unserializedResponse['headers'], $this->url);
@@ -148,23 +172,44 @@ class WordPress extends Universal {
 		return $response;
 	}
 
+	/**
+	 * Makes a request.
+	 *
+	 * @param object $request
+	 *
+	 * @return \Symfony\Component\BrowserKit\Response
+	 *
+	 * @throws \Codeception\Exception\ModuleException If the request has to be
+	 *                                                done in process (unsafe
+	 *                                                files) and the response
+	 *                                                is malformed.
+	 */
 	public function doRequest($request) {
 		if ($this->mockedResponse) {
-			$response = $this->mockedResponse;
+			$response             = $this->mockedResponse;
 			$this->mockedResponse = null;
 			return $response;
 		}
 
-		$_COOKIE = $request->getCookies();
-		$_SERVER = $request->getServer();
-		$_FILES = $this->remapFiles($request->getFiles());
-
 		$uri = str_replace('http://localhost', '', $request->getUri());
 
+		$wpRootFolder = $this->wpLoader->_getConfig('wpRootFolder');
+		$file         = $wpRootFolder . $uri;
+
+		if (is_file($file) && !in_array($uri, $this->safeFiles, true)) {
+			/** @var Request $request */
+			return $this->doRequestInProcess($request);
+		}
+
+		$_COOKIE = $request->getCookies();
+		$_SERVER = $request->getServer();
+		$_FILES  = $this->remapFiles($request->getFiles());
+
 		$_REQUEST = $this->remapRequestParameters($request->getParameters());
-		if (strtoupper($request->getMethod()) == 'GET') {
+		if (strtoupper($request->getMethod()) === 'GET') {
 			$_GET = $_REQUEST;
-		} else {
+		}
+		else {
 			$_POST = $_REQUEST;
 		}
 
@@ -172,20 +217,26 @@ class WordPress extends Universal {
 		$_SERVER['REQUEST_URI']     = $uri;
 		$_SERVER['PHP_SELF']        = str_replace($this->rootFolder, '', $this->uriToIndexMapper->getIndexForUri($uri));
 		$_SERVER['SERVER_PROTOCOL'] = !empty($_SERVER['SERVER_PROTOCOL']) ?: 'HTTP/1.0';
-		$_SERVER['SERVER_NAME'] = !empty($_SERVER['SERVER_NAME']) ?: $this->domain;
+		$_SERVER['SERVER_NAME']     = !empty($_SERVER['SERVER_NAME']) ?: $this->domain;
+
+		unset($GLOBALS['current_user']);
+		$GLOBALS['current_user'] = wp_get_current_user();
+
+		ob_start();
 
 		if ($this->echoOutput) {
 			$this->addPrintOutputAction();
-		} else {
+		}
+		else {
 			$this->removePrintOutputAction();
 		}
 
-		ob_start();
 		$this->wpLoader->go_to($uri);
+
 		$content = ob_get_contents();
 		ob_end_clean();
 
-		$headers = [];
+		$headers     = [];
 		$php_headers = headers_list();
 		foreach ($php_headers as $value) {
 			// Get the header name
@@ -201,10 +252,11 @@ class WordPress extends Universal {
 			: "text/html; charset=UTF-8";
 
 		$response = new Response($content, 200, $headers);
+
 		return $response;
 	}
 
-	private function replaceSiteUrlDeep($array, $url) {
+	protected function replaceSiteUrlDeep($array, $url) {
 		if (empty($array)) {
 			return [];
 		}
@@ -212,8 +264,9 @@ class WordPress extends Universal {
 		foreach ($array as $key => $value) {
 			if (is_array($value)) {
 				$replaced[$key] = $this->replaceSiteUrlDeep($value, $url);
-			} else {
-				$replaced[$key] = str_replace(urlencode($url), urldecode(''), str_replace($url, '', $value));
+			}
+			else {
+				$replaced[$key] = str_replace([$url, urlencode($url)], '', $value);
 			}
 		}
 
@@ -278,9 +331,10 @@ class WordPress extends Universal {
 	protected function addPrintOutputAction() {
 		add_action('wp', [$this, 'includeTemplateLoader'], 99);
 		add_filter('redirect_canonical', '__return_false');
-		$this->loadTemplateHandle = redefine('load_template', function($_template_file){
-			relay([$_template_file, false]);
-		});
+		$this->loadTemplateHandle = redefine('load_template',
+			function ($_template_file) {
+				relay([$_template_file, false]);
+			});
 	}
 
 	protected function removePrintOutputAction() {
