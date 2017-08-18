@@ -1,7 +1,3 @@
-<?php
-/**
- * Created by PhpStorm.
- * User: luca
- * Date: 18/08/2017
- * Time: 19:56
- */
+<?php wp_footer(); ?>
+</body>
+</html>

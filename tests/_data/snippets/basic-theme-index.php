@@ -1,7 +1,7 @@
-<?php
-/**
- * Created by PhpStorm.
- * User: luca
- * Date: 18/08/2017
- * Time: 19:50
- */
+<?php get_header(); ?>
+
+<main>
+    Hello world.
+</main>
+
+<?php get_footer(); ?>

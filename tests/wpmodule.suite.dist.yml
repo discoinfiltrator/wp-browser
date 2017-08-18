@@ -3,7 +3,7 @@ modules:
     enabled:
         - \Helper\Wpmodule
         - WPDb:
-            dsn: 'mysql:host=localhost;dbname=test'
+            dsn: 'mysql:host=%DB_HOST%;dbname=%DB_NAME%'
             user: %DB_USER%
             password: %DB_PASSWORD%
             dump: 'tests/_data/dump.sql'
@@ -11,7 +11,7 @@ modules:
             cleanup: true
             reconnect: false
             url: '%WP_URL%'
-            tablePrefix: wp_
+            tablePrefix: 'wp_'
         - WordPress:
             depends: WPDb
             wpRootFolder: '%WP_ROOT_FOLDER%'
