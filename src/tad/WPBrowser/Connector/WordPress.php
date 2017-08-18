@@ -74,7 +74,9 @@ class WordPress extends Universal {
 	 *      include more than once. All file paths are relative to the current
 	 *      WordPress root folder.
 	 */
-	protected $safeFiles = [];
+	protected $safeFiles = [
+		'/index.php',
+	];
 
 	public function __construct(
 		array $server = array(),
@@ -179,10 +181,7 @@ class WordPress extends Universal {
 	 *
 	 * @return \Symfony\Component\BrowserKit\Response
 	 *
-	 * @throws \Codeception\Exception\ModuleException If the request has to be
-	 *                                                done in process (unsafe
-	 *                                                files) and the response
-	 *                                                is malformed.
+	 * @throws \Codeception\Exception\ModuleException If the request has to be done in process and the response is malformed.
 	 */
 	public function doRequest($request) {
 		if ($this->mockedResponse) {

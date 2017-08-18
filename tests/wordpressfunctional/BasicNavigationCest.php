@@ -20,6 +20,25 @@ class BasicNavigationCest {
 	}
 
 	/**
+	 * It should allow navigating to the site homepage multiple times
+	 *
+	 * @test
+	 */
+	public function should_allow_navigating_to_the_site_homepage_multiple_times(Tester $I) {
+		$I->amOnPage('/');
+
+		$I->seeElement('body.home');
+
+		$I->amOnPage('/');
+
+		$I->seeElement('body.home');
+
+		$I->amOnPage('/');
+
+		$I->seeElement('body.home');
+	}
+
+	/**
 	 * It should allow navigating to a single post page
 	 *
 	 * @test
