@@ -32,6 +32,8 @@ class LoginCest {
 	/**
 	 * It should not fire hooks during the login process
 	 *
+	 * The request will be handled in a separate PHP process.
+	 *
 	 * @test
 	 */
 	public function should_not_fire_hooks_during_the_login_process(Tester $I) {
