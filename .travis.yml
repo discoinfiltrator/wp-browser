@@ -101,3 +101,4 @@ script:
   - codecept run wploadersuite
   - codecept run muloader
   - codecept run cli
+  - codecept run wordpressfunctional
