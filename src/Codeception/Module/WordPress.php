@@ -7,10 +7,9 @@ use Codeception\Exception\ModuleConfigException;
 use Codeception\Lib\Framework;
 use Codeception\Lib\Interfaces\DependsOnModule;
 use Codeception\Lib\ModuleContainer;
-use Codeception\TestCase\WPTestCase;
 use Codeception\TestInterface;
-use function GuzzleHttp\Psr7\parse_query;
 use tad\WPBrowser\Connector\WordPress as WordPressConnector;
+use function Patchwork\restoreAll;
 
 class WordPress extends Framework implements DependsOnModule {
 
@@ -126,9 +125,12 @@ EOF;
 		$this->siteUrl = $wpdb->grabSiteUrl();
 		$this->loginUrl = '/wp-login.php';
 		$this->setupClient($wpdb->getSiteDomain());
+
+		// restore all functions patched by Patchwork
+		restoreAll();
 	}
 
-	private function setupClient($siteDomain) {
+	protected function setupClient($siteDomain) {
 		$this->client = $this->client ? $this->client : new WordPressConnector();
 		$this->client->setUrl($this->siteUrl);
 		$this->client->setDomain($siteDomain);
@@ -272,7 +274,7 @@ EOF;
 	 */
 	public function getInternalDomains() {
 		$internalDomains   = [];
-		$internalDomains[] = '/^' . preg_quote(parse_url($this->siteUrl, PHP_URL_HOST)) . '$/';
+		$internalDomains[] = '/^' . preg_quote(parse_url($this->siteUrl, PHP_URL_HOST), '/') . '$/';
 		return $internalDomains;
 	}
 
@@ -295,8 +297,7 @@ EOF;
 	}
 
 	protected function getAbsoluteUrlFor($uri) {
-		$uri = str_replace($this->siteUrl, 'http://localhost',
-			str_replace(urlencode($this->siteUrl), urlencode('http://localhost'), $uri));
+		$uri = str_replace([$this->siteUrl, urlencode($this->siteUrl)], 'http://localhost', $uri);
 		return parent::getAbsoluteUrlFor($uri);
 	}
 
