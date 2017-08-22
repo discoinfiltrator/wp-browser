@@ -9,7 +9,6 @@ use Codeception\Lib\Interfaces\DependsOnModule;
 use Codeception\Lib\ModuleContainer;
 use Codeception\TestInterface;
 use tad\WPBrowser\Connector\WordPress as WordPressConnector;
-use function Patchwork\restoreAll;
 
 class WordPress extends Framework implements DependsOnModule {
 
@@ -127,7 +126,9 @@ EOF;
 		$this->setupClient($wpdb->getSiteDomain());
 
 		// restore all functions patched by Patchwork
-		restoreAll();
+		if (function_exists('\Patchwork\restoreAll')) {
+			\Patchwork\restoreAll();
+		}
 	}
 
 	protected function setupClient($siteDomain) {
